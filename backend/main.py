@@ -33,7 +33,12 @@ def get_questions():
     try:
         conn = mysql.connector.connect(**db_params)
         cursor = conn.cursor(buffered=True, dictionary=True)
-        cursor.execute("SELECT * FROM questions")
+        query = """
+        SELECT q.*, s.name as subject_name 
+        FROM questions q
+        LEFT JOIN subjects s ON q.subject_id = s.id
+    """
+        cursor.execute(query)
         result = cursor.fetchall()
         cursor.close()
         conn.close()
@@ -43,16 +48,16 @@ def get_questions():
 
 
 # 2. API lấy câu hỏi theo môn học (Đã sửa lỗi db not defined)
-@app.get("/api/questions/{subject_name}")
-def get_questions_by_subject(subject_name: str):
+@app.get("/api/questions/{subject_id}")
+def get_questions_by_subject(subject_id: str):
     try:
         # Tạo kết nối mới cho mỗi yêu cầu
         conn = mysql.connector.connect(**db_params)
         cursor = conn.cursor(buffered=True, dictionary=True)
 
         # Truy vấn lọc theo môn học
-        query = "SELECT * FROM questions WHERE subject = %s"
-        cursor.execute(query, (subject_name,))
+        query = "SELECT * FROM questions WHERE subject_id = %s"
+        cursor.execute(query, (subject_id,))
         result = cursor.fetchall()
 
         cursor.close()
@@ -72,14 +77,30 @@ def get_subjects():
     return res
 
 # Thêm/Sửa môn học (Dành cho Admin)
-@app.post("/api/admin/subjects")
+@app.post("/api/subjects")
 def upsert_subject(data: dict):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
-    query = "INSERT INTO subjects (id, name, icon_name, color_class, bg_class, description) VALUES (%s, %s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE name=%s, description=%s"
-    # ... thực thi query ...
-    conn.commit()
-    return {"status": "success"}
+    try:
+        # Câu lệnh SQL để thêm hoặc cập nhật nếu đã tồn tại mã ID
+        query = """
+            INSERT INTO subjects (id, name, description, icon_name, color_class, bg_class) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE name=%s, description=%s
+        """
+        values = (
+            data['id'], data['name'], data.get('description', ''),
+            data.get('icon_name', 'BookOpen'), 'text-blue-600', 'bg-blue-50',
+            data['name'], data.get('description', '')
+        )
+        cursor.execute(query, values) # QUAN TRỌNG: Phải có dòng này
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Lỗi SQL: {e}") # In ra PyCharm để xem lỗi
+        return {"status": "error", "message": str(e)}
+    finally:
+        conn.close()
 
 # --- QUẢN LÝ TÀI LIỆU ---
 
@@ -92,7 +113,7 @@ def get_document():
     conn.close()
     return res
 
-@app.post("/api/admin/document")
+@app.post("/api/document")
 def add_document(data: dict):
     try:
         conn = mysql.connector.connect(**db_params) # Sử dụng db_params đã khai báo
@@ -129,7 +150,7 @@ def add_news(data: dict):
     conn.close()
     return {"status": "success", "message": "Đã đăng tin tức"}
 
-@app.delete("/api/admin/questions/{q_id}")
+@app.delete("/api/questions/{q_id}")
 def delete_question(q_id: int):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
@@ -139,7 +160,7 @@ def delete_question(q_id: int):
     return {"message": "Đã xóa câu hỏi"}
 
 # Tương tự cho subjects, documents và news
-@app.delete("/api/admin/subjects/{s_id}")
+@app.delete("/api/subjects/{s_id}")
 def delete_subject(s_id: str):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
@@ -152,13 +173,13 @@ def delete_subject(s_id: str):
 def delete_document(d_id: int):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM document WHERE id = %s", (d_id,))
+    cursor.execute("DELETE FROM documents WHERE id = %s", (d_id,))
     conn.commit()
     conn.close()
     return {"message": "Đã xóa tài liệu"}
 
 @app.delete("/api/admin/news/{n_id}")
-def delete_question(n_id: int):
+def delete_news(n_id: int):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
     cursor.execute("DELETE FROM news WHERE id = %s", (n_id,))
@@ -216,4 +237,34 @@ def register(data: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
+        conn.close()
+
+@app.post("/api/questions")
+def add_question(data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = """
+            INSERT INTO questions (subject_id, content) 
+            VALUES (%s, %s)
+        """
+
+        values = (
+            data.get('subject_id'),
+            data.get('content')
+        )
+
+        if not values[0] or not values[1]:
+            raise HTTPException(status_code=400, detail="Thiếu môn học hoặc nội dung câu hỏi")
+
+        cursor.execute(query, values)
+        conn.commit()  # Quan trọng: Phải có dòng này thì dữ liệu mới thực sự lưu vào DB
+
+        return {"status": "success", "message": "Thêm câu hỏi thành công!"}
+
+    except mysql.connector.Error as err:
+        print(f"Lỗi MySQL: {err}")
+        raise HTTPException(status_code=500, detail="Lỗi cơ sở dữ liệu")
+    finally:
+        cursor.close()
         conn.close()

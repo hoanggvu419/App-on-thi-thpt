@@ -268,3 +268,31 @@ def add_question(data: dict):
     finally:
         cursor.close()
         conn.close()
+
+@app.put("/api/subjects/{s_id}")
+def update_subject(s_id: str, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = "UPDATE subjects SET name=%s, description=%s WHERE id=%s"
+        cursor.execute(query, (data['name'], data.get('description', ''), s_id))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.put("/api/questions/{q_id}")
+def update_question(q_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = "UPDATE questions SET subject_id=%s, content=%s WHERE id=%s"
+        cursor.execute(query, (data['subject_id'], data['content'], q_id))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()

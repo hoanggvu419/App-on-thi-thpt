@@ -7,6 +7,8 @@ const Admin = () => {
   const [allSubjects, setAllSubjects] = useState([]);
   const [data, setData] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false); // Theo dõi đang Sửa hay Thêm
+  const [editId, setEditId] = useState(null);       // Lưu ID của mục đang sửa
 
   // State lưu dữ liệu người dùng nhập
   const [formData, setFormData] = useState({});
@@ -25,21 +27,32 @@ const Admin = () => {
   }, []);
   // Hàm xử lý gửi dữ liệu lên Backend
   const handleSave = async (e) => {
-  e.preventDefault(); // Ngăn load lại trang
+  e.preventDefault();
   try {
-    // Gửi POST tới địa chỉ tương ứng với Tab đang chọn (subjects, news, v.v.)
-    const res = await axios.post(`http://127.0.0.1:8000/api/${activeTab}`, formData);
-    
+    let res;
+    if (isEditing) {
+      // Gửi request UPDATE (PUT)
+      res = await axios.put(`http://127.0.0.1:8000/api/${activeTab}/${editId}`, formData);
+    } else {
+      // Gửi request CREATE (POST)
+      res = await axios.post(`http://127.0.0.1:8000/api/${activeTab}`, formData);
+    }
+
     if (res.data.status === 'success') {
-      alert("Thêm thành công!");
-      setShowModal(false); // Đóng modal
-      setFormData({});    // Reset form
-      fetchData();        // Tải lại bảng để hiện dòng mới
+      alert(isEditing ? "Cập nhật thành công!" : "Thêm mới thành công!");
+      closeModal(); // Hàm reset state bên dưới
+      fetchData();
     }
   } catch (err) {
     alert("Lỗi khi lưu dữ liệu!");
-    console.error(err);
   }
+};
+// Hàm đóng modal và reset trắng state
+const closeModal = () => {
+  setShowModal(false);
+  setIsEditing(false);
+  setEditId(null);
+  setFormData({});
 };
   // Load dữ liệu dựa trên Tab đang chọn
   const fetchData = async () => {
@@ -56,6 +69,15 @@ const Admin = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
+  // Hàm khi nhấn nút Edit trên dòng
+const handleEdit = (item) => {
+  setEditId(item.id);
+  setFormData(item);      // Đổ toàn bộ dữ liệu dòng đó vào form
+  setIsEditing(true);     // Đánh dấu là đang sửa
+  setShowModal(true);     // Mở modal
+};
+
+  //hàm xử lý xóa mục
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa mục này?")) {
       try {
@@ -125,7 +147,7 @@ const Admin = () => {
                     {item.name || item.title || item.content}
                   </td>
                   <td className="p-4 flex gap-3">
-                    <button className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition"><Edit size={18} /></button>
+                    <button onClick={() => handleEdit(item)} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition"><Edit size={18} /></button>
                     <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><Trash2 size={18} /></button>
                   </td>
                 </tr>
@@ -179,6 +201,50 @@ const Admin = () => {
                   className="w-full border p-3 rounded-xl outline-none"
                   onChange={(e) => setFormData({...formData, content: e.target.value})} 
                 />
+
+                <input 
+                  type="text" 
+                  placeholder="Lựa chọn A" 
+                  required 
+                  className="w-full border p-3 rounded-xl outline-none"
+                  onChange={(e) => setFormData({...formData, option_a: e.target.value})} 
+                />
+
+                <input 
+                  type="text" 
+                  placeholder="Lựa chọn B" 
+                  required 
+                  className="w-full border p-3 rounded-xl outline-none"
+                  onChange={(e) => setFormData({...formData, option_b: e.target.value})} 
+                />
+
+                <input 
+                  type="text" 
+                  placeholder="Lựa chọn C" 
+                  required 
+                  className="w-full border p-3 rounded-xl outline-none"
+                  onChange={(e) => setFormData({...formData, option_c: e.target.value})} 
+                />
+
+                <input 
+                  type="text" 
+                  placeholder="Lựa chọn D" 
+                  required 
+                  className="w-full border p-3 rounded-xl outline-none"
+                  onChange={(e) => setFormData({...formData, option_d: e.target.value})} 
+                />
+
+                <select 
+                  required 
+                  className="w-full border p-3 rounded-xl outline-none"
+                  onChange={(e) => setFormData({...formData, correct_answer: e.target.value})}
+                >
+                  <option value="">-- Chọn đáp án đúng --</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                  <option value="D">D</option>
+                </select>
               </>
             )}
             {/* Nếu là Tab Tin tức */}

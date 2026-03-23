@@ -9,6 +9,9 @@ import News from './pages/News';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ExamList from './pages/ExamList';
+import ExamTake from './pages/ExamTake';
+import ExamEditor from './pages/ExamEditor';
 import { Navigate } from 'react-router-dom';
 
 
@@ -45,6 +48,13 @@ function App() {
           <Route path="/news" element={<News />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/exams" element={<ExamList />} />
+          <Route path="/exams/:examId" element={<ExamTake />} />
+          <Route path="/admin/exams/:examId/edit" element={
+            <ProtectedRoute>
+              <ExamEditor />
+            </ProtectedRoute>
+          } />
         </Routes>
       </div>
     </Router>

@@ -33,7 +33,7 @@ const Navbar = () => {
       {/* 2. Menu chính (Ẩn trên mobile) */}
       <div className="hidden md:flex items-center gap-8 font-medium text-gray-700">
         <Link to="/" className="hover:text-blue-600 transition">Trang chủ</Link>
-        <Link to="/quiz/Toan" className="hover:text-blue-600 transition">Đề thi</Link>
+        <Link to="/exams" className="hover:text-blue-600 transition">Đề thi</Link>
         <Link to="/document" className="hover:text-blue-600 transition">Tài liệu</Link>
         <Link to="/news" className="hover:text-blue-600 transition">Tin tức</Link>
       </div>

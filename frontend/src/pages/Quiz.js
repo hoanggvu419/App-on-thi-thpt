@@ -1,21 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 
 const Quiz = () => {
-  const [userAnswers, setUserAnswers] = useState({}); // Lưu {câu_hỏi_id: 'a'}
-  const navigate = useNavigate(); // Để chuyển trang
-  const { subject } = useParams(); // Lấy tên môn học từ URL
+  const [userAnswers, setUserAnswers] = useState({});
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { subject } = useParams();
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+
+  const { numQuestions: numQ, timeLimit, quickPractice } = location.state || {};
+  const [timeLeft, setTimeLeft] = useState(timeLimit ? timeLimit * 60 : null);
+
+  const questionsRef = useRef([]);
+  const userAnswersRef = useRef({});
+  useEffect(() => { questionsRef.current = questions; }, [questions]);
+  useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
 
   useEffect(() => {
     // API lọc theo môn học từ Backend của bạn
     axios.get(`http://127.0.0.1:8000/api/questions/${subject}`)
-      .then(res => setQuestions(res.data))
+      .then(res => {
+        let qs = res.data;
+        if (quickPractice && numQ && numQ < qs.length) {
+          qs = [...qs].sort(() => Math.random() - 0.5).slice(0, numQ);
+        }
+        setQuestions(qs);
+      })
       .catch(err => console.log(err));
   }, [subject]);
+
+  const autoSubmit = () => {
+    const qs = questionsRef.current;
+    const ua = userAnswersRef.current;
+    let score = 0;
+    const details = qs.map(q => {
+      const isCorrect = ua[q.id] === q.correct_answer.toLowerCase();
+      if (isCorrect) score++;
+      return { ...q, userAnswer: ua[q.id], isCorrect };
+    });
+    navigate('/result', { state: { score, total: qs.length, details } });
+  };
+
+  const formatTime = (secs) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // Đếm ngược thời gian
+  useEffect(() => {
+    if (timeLeft === null) return;
+    if (timeLeft === 0) {
+      autoSubmit();
+      return;
+    }
+    const t = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timeLeft]);
 const handleNopBai = () => {
+  if (submitted) return;
+  setSubmitted(true);
   let score = 0;
   const details = questions.map(q => {
     const isCorrect = userAnswers[q.id] === q.correct_answer.toLowerCase();
@@ -82,6 +129,13 @@ const handleNopBai = () => {
       {/* Cột phải: Danh sách số câu (Giống web thi thật) */}
       <div className="w-full md:w-80 bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-fit sticky top-24">
         <h3 className="font-bold text-gray-800 mb-4">Danh sách câu hỏi</h3>
+        {timeLeft !== null && (
+          <div className={`mb-4 p-3 rounded-xl text-center font-mono text-2xl font-bold tracking-widest ${
+            timeLeft <= 60 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-blue-50 text-blue-700'
+          }`}>
+            ⏱ {formatTime(timeLeft)}
+          </div>
+        )}
         <div className="grid grid-cols-5 gap-2">
           {questions.map((_, index) => {
   const questionId = questions[index].id;

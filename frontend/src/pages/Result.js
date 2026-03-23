@@ -45,7 +45,7 @@ const Result = () => {
               <div>
                 <p className="font-bold text-gray-800 mb-2">Câu {index + 1}: {item.content}</p>
                 <p className="text-sm mb-1">Đáp án của bạn: <span className="font-bold uppercase">{item.userAnswer}</span></p>
-                <p className="text-sm mb-3">Đáp án đúng: <span className="font-bold uppercase text-green-600">{item.correctAnswer}</span></p>
+                <p className="text-sm mb-3">Đáp án đúng: <span className="font-bold uppercase text-green-600">{item.correct_answer}</span></p>
                 {item.explanation && (
                   <div className="bg-white p-3 rounded-lg border border-gray-200 text-sm italic text-gray-600">
                     <strong>Giải thích:</strong> {item.explanation}

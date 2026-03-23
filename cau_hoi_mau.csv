@@ -1,0 +1,51 @@
+subject_id,content,option_a,option_b,option_c,option_d,correct_answer
+toan-học,Giá trị của biểu thức 2³ + 3² bằng bao nhiêu?,15,17,13,12,B
+toan-học,Phương trình x² - 5x + 6 = 0 có nghiệm là?,x=1 và x=6,x=2 và x=3,x=-2 và x=-3,x=3 và x=4,B
+toan-học,Đạo hàm của hàm số f(x) = x³ - 3x² + 2 là?,3x² - 6x,3x² + 6x,x² - 6x,3x² - 3x,A
+toan-học,Giá trị lớn nhất của hàm số y = -x² + 4x - 1 trên R là?,2,3,4,5,B
+toan-học,Tập xác định của hàm số y = √(x - 3) là?,x > 3,x ≥ 3,x < 3,x ≤ 3,B
+toan-học,Tổng của cấp số cộng có 10 số hạng đầu tiên là 1 + 2 + ... + 10 bằng?,45,50,55,60,C
+toan-học,Giới hạn lim(x→2) (x² - 4)/(x - 2) bằng?,2,4,0,Không tồn tại,B
+toan-học,Nguyên hàm của f(x) = 2x + 1 là?,x² + x + C,2x² + x + C,x + C,2x + C,A
+toan-học,Diện tích hình tròn bán kính R là?,πR,2πR,πR²,2πR²,C
+toan-học,Cos(60°) bằng?,√3/2,1/2,√2/2,1,B
+vat-ly,Đơn vị của lực trong hệ SI là?,Joule,Pascal,Newton,Watt,C
+vat-ly,Công thức tính động năng của vật là?,Wd = mv,Wd = mv²,Wd = ½mv²,Wd = 2mv²,C
+vat-ly,Tốc độ ánh sáng trong chân không xấp xỉ bằng?,3×10⁶ m/s,3×10⁷ m/s,3×10⁸ m/s,3×10⁹ m/s,C
+vat-ly,Định luật Ôm phát biểu mối quan hệ giữa điện áp U điện trở R và cường độ I như thế nào?,I = U×R,U = I/R,I = U/R,R = I×U,C
+vat-ly,Công thức tính công cơ học là?,A = F/s,A = F×s×cos(α),A = m×a,A = F×t,B
+vat-ly,Nhiệt độ tuyệt đối 0 K tương đương với bao nhiêu độ C?,-100°C,-173°C,-273°C,-373°C,C
+vat-ly,Hiện tượng quang điện được phát hiện bởi nhà khoa học nào?,Einstein,Newton,Hertz,Bohr,C
+vat-ly,Theo định luật bảo toàn năng lượng điện năng có thể chuyển hóa thành?,Chỉ nhiệt năng,Chỉ quang năng,Nhiều dạng năng lượng khác,Không thể chuyển hóa,C
+vat-ly,Sóng âm không truyền được trong môi trường nào?,Chất rắn,Chất lỏng,Chất khí,Chân không,D
+vat-ly,Công thức liên hệ giữa chu kỳ T và tần số f là?,T = f,T = 1/f,T = 2f,f = 2T,B
+hoa-hoc,Nguyên tử khối của nguyên tố Oxy (O) là?,14,16,18,12,B
+hoa-hoc,Phương trình nào biểu diễn phản ứng tổng hợp nước?,H₂ + O → H₂O,2H₂ + O₂ → 2H₂O,H₂ + O₂ → H₂O,2H + O → H₂O,B
+hoa-hoc,Chất nào sau đây là axit mạnh?,HF,H₂CO₃,HCl,CH₃COOH,C
+hoa-hoc,Số hiệu nguyên tử của Carbon (C) là?,4,6,8,12,B
+hoa-hoc,Công thức của muối ăn là?,NaOH,KCl,NaCl,CaCl₂,C
+hoa-hoc,Phản ứng giữa axit và bazơ tạo thành gì?,Muối,Muối và nước,Oxit,Khí,B
+hoa-hoc,Kim loại nào dẫn điện tốt nhất?,Vàng,Đồng,Nhôm,Bạc,D
+hoa-hoc,Công thức hóa học của khí CO₂ được gọi là?,Cacbon monoxit,Cacbon đioxit,Cacbon trioxit,Oxit cacbon,B
+hoa-hoc,pH của dung dịch trung tính ở 25°C là?,0,7,14,5,B
+hoa-hoc,Chất nào sau đây là chất khử trong phản ứng oxi hóa - khử?,Chất nhường electron,Chất nhận electron,Chất không thay đổi số oxi hóa,Chất trung gian,A
+tieng-anh,Choose the correct tense: "She ___ to school every day.",go,goes,going,gone,B
+tieng-anh,Which word is a synonym of 'happy'?,Sad,Angry,Joyful,Tired,C
+tieng-anh,Choose the correct preposition: "I am interested ___ learning English.",at,in,on,with,B
+tieng-anh,The passive voice of 'They build a new school' is?,"A new school is built","A new school was built","A new school has been built","A new school will be built",A
+tieng-anh,Which sentence is grammatically correct?,"He don't like coffee","She doesn't likes tea","We doesn't go there","He doesn't like coffee",D
+tieng-anh,Choose the correct form: "If I ___ rich I would travel the world.",am,was,were,be,C
+tieng-anh,What does 'benevolent' mean?,Cruel,Kind and generous,Boring,Angry,B
+tieng-anh,Choose the correct comparative: "This book is ___ than that one.",more interesting,most interesting,interestinger,interestingest,A
+tieng-anh,"Complete the sentence: 'By the time she arrived, he ___ already ___.'",has / left,had / left,have / left,was / left,B
+tieng-anh,Which word is the antonym of 'ancient'?,Old,Modern,Historic,Classic,B
+ngu-van,Tác phẩm 'Truyện Kiều' được viết bởi ai?,Hồ Xuân Hương,Nguyễn Du,Nguyễn Trãi,Tố Hữu,B
+ngu-van,Thể thơ của 'Truyện Kiều' là gì?,Thất ngôn bát cú,Lục bát,Song thất lục bát,Tứ tuyệt,B
+ngu-van,Tác phẩm 'Tắt đèn' của Ngô Tất Tố viết về đề tài gì?,Chiến tranh,Nông dân và nạn sưu thuế,Tình yêu đôi lứa,Lịch sử dân tộc,B
+ngu-van,Bài thơ 'Nam quốc sơn hà' được cho là của ai?,Lý Thường Kiệt,Trần Hưng Đạo,Nguyễn Trãi,Lê Lợi,A
+ngu-van,Nhân vật Chí Phèo xuất hiện trong tác phẩm của ai?,Nguyễn Công Hoan,Ngô Tất Tố,Nam Cao,Thạch Lam,C
+ngu-van,Phong trào Thơ Mới (1932-1945) có đặc điểm nổi bật nào?,Thơ chỉ viết về thiên nhiên,Đề cao cái tôi cá nhân và cảm xúc,Thơ chỉ ca ngợi đất nước,Thơ chỉ viết bằng chữ Nôm,B
+ngu-van,Tác phẩm 'Chiếc lược ngà' được viết bởi ai?,Nguyễn Quang Sáng,Nguyễn Minh Châu,Nguyễn Khải,Tô Hoài,A
+ngu-van,Biện pháp tu từ nào được sử dụng trong câu 'Mặt trời của mẹ em nằm trên lưng'?,So sánh,Nhân hóa,Ẩn dụ,Hoán dụ,C
+ngu-van,Tác phẩm 'Bình Ngô đại cáo' được Nguyễn Trãi viết theo thể loại gì?,Thơ,Cáo,Hịch,Chiếu,B
+ngu-van,Trong 'Truyện Kiều' Thúy Kiều bán mình để chuộc ai?,Cha và em trai,Cha và em gái,Mẹ và anh trai,Chỉ chuộc cha,A

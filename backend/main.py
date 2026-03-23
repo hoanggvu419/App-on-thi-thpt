@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import mysql.connector
-from fastapi import HTTPException
+import csv
+import io
 
 app = FastAPI()
 
@@ -119,8 +120,8 @@ def add_document(data: dict):
         conn = mysql.connector.connect(**db_params) # Sử dụng db_params đã khai báo
         cursor = conn.cursor()
         # Query phải có execute mới có tác dụng
-        query = "INSERT INTO documents (title, subject_id, file_url, file_size) VALUES (%s, %s, %s, %s)"
-        cursor.execute(query, (data['title'], data['subject_id'], data['file_url'], data['file_size']))
+        query = "INSERT INTO documents (title, subject_id, file_url, preview_url, file_size) VALUES (%s, %s, %s, %s, %s)"
+        cursor.execute(query, (data['title'], data['subject_id'], data.get('file_url', ''), data.get('preview_url', ''), data.get('file_size', '')))
         conn.commit()
         conn.close()
         return {"status": "success"}
@@ -139,16 +140,20 @@ def get_news():
     conn.close()
     return res
 
-@app.post("/api/admin/news")
+@app.post("/api/news")
 def add_news(data: dict):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
-    query = "INSERT INTO news (title, content, type, date_posted) VALUES (%s, %s, %s, %s)"
-    values = (data['title'], data['content'], data['type'], data['date_posted'])
-    cursor.execute(query, values)
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Đã đăng tin tức"}
+    try:
+        query = "INSERT INTO news (title, content, url) VALUES (%s, %s, %s)"
+        values = (data['title'], data.get('content', ''), data.get('url', ''))
+        cursor.execute(query, values)
+        conn.commit()
+        return {"status": "success", "message": "Đã đăng tin tức"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.delete("/api/questions/{q_id}")
 def delete_question(q_id: int):
@@ -169,7 +174,7 @@ def delete_subject(s_id: str):
     conn.close()
     return {"message": "Đã xóa môn học"}
 
-@app.delete("/api/admin/document/{d_id}")
+@app.delete("/api/document/{d_id}")
 def delete_document(d_id: int):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
@@ -178,7 +183,7 @@ def delete_document(d_id: int):
     conn.close()
     return {"message": "Đã xóa tài liệu"}
 
-@app.delete("/api/admin/news/{n_id}")
+@app.delete("/api/news/{n_id}")
 def delete_news(n_id: int):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
@@ -245,26 +250,78 @@ def add_question(data: dict):
     cursor = conn.cursor()
     try:
         query = """
-            INSERT INTO questions (subject_id, content) 
-            VALUES (%s, %s)
+            INSERT INTO questions (subject_id, content, option_a, option_b, option_c, option_d, correct_answer) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
 
         values = (
             data.get('subject_id'),
-            data.get('content')
+            data.get('content'),
+            data.get('option_a'),
+            data.get('option_b'),
+            data.get('option_c'),
+            data.get('option_d'),
+            data.get('correct_answer'),
         )
 
         if not values[0] or not values[1]:
             raise HTTPException(status_code=400, detail="Thiếu môn học hoặc nội dung câu hỏi")
 
         cursor.execute(query, values)
-        conn.commit()  # Quan trọng: Phải có dòng này thì dữ liệu mới thực sự lưu vào DB
+        conn.commit()
 
         return {"status": "success", "message": "Thêm câu hỏi thành công!"}
 
     except mysql.connector.Error as err:
         print(f"Lỗi MySQL: {err}")
         raise HTTPException(status_code=500, detail="Lỗi cơ sở dữ liệu")
+    finally:
+        cursor.close()
+        conn.close()
+
+# --- IMPORT CÂU HỎI HÀNG LOẠT TỪ FILE CSV ---
+# Định dạng CSV: subject_id,content,option_a,option_b,option_c,option_d,correct_answer
+@app.post("/api/questions/import")
+async def import_questions(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file CSV!")
+    
+    contents = await file.read()
+    text = contents.decode('utf-8-sig')  # utf-8-sig để xử lý BOM của Excel
+    reader = csv.DictReader(io.StringIO(text))
+
+    required_fields = {'subject_id', 'content', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_answer'}
+    if not required_fields.issubset(set(reader.fieldnames or [])):
+        raise HTTPException(status_code=400, detail=f"File CSV thiếu cột. Cần có: {', '.join(required_fields)}")
+
+    rows = list(reader)
+    if len(rows) == 0:
+        raise HTTPException(status_code=400, detail="File CSV không có dữ liệu!")
+
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = """
+            INSERT INTO questions (subject_id, content, option_a, option_b, option_c, option_d, correct_answer)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        values = [
+            (
+                row['subject_id'].strip(),
+                row['content'].strip(),
+                row['option_a'].strip(),
+                row['option_b'].strip(),
+                row['option_c'].strip(),
+                row['option_d'].strip(),
+                row['correct_answer'].strip().upper(),
+            )
+            for row in rows if row.get('content') and row.get('subject_id')
+        ]
+        cursor.executemany(query, values)
+        conn.commit()
+        return {"status": "success", "message": f"Đã import thành công {len(values)} câu hỏi!"}
+    except mysql.connector.Error as err:
+        raise HTTPException(status_code=500, detail=f"Lỗi DB: {str(err)}")
     finally:
         cursor.close()
         conn.close()
@@ -288,11 +345,263 @@ def update_question(q_id: int, data: dict):
     conn = mysql.connector.connect(**db_params)
     cursor = conn.cursor()
     try:
-        query = "UPDATE questions SET subject_id=%s, content=%s WHERE id=%s"
-        cursor.execute(query, (data['subject_id'], data['content'], q_id))
+        query = "UPDATE questions SET subject_id=%s, content=%s, option_a=%s, option_b=%s, option_c=%s, option_d=%s, correct_answer=%s WHERE id=%s"
+        cursor.execute(query, (
+            data['subject_id'], data['content'],
+            data.get('option_a'), data.get('option_b'),
+            data.get('option_c'), data.get('option_d'),
+            data.get('correct_answer'), q_id
+        ))
         conn.commit()
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
+        conn.close()
+
+@app.put("/api/document/{d_id}")
+def update_document(d_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = "UPDATE documents SET title=%s, subject_id=%s, file_url=%s, preview_url=%s, file_size=%s WHERE id=%s"
+        cursor.execute(query, (
+            data['title'], data.get('subject_id'),
+            data.get('file_url', ''), data.get('preview_url', ''), data.get('file_size', ''), d_id
+        ))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.put("/api/news/{n_id}")
+def update_news(n_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = "UPDATE news SET title=%s, content=%s, url=%s WHERE id=%s"
+        cursor.execute(query, (data['title'], data.get('content', ''), data.get('url', ''), n_id))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+
+# =============================================
+# --- QUẢN LÝ ĐỀ THI ---
+# =============================================
+
+@app.get("/api/exams")
+def get_exams(subject_id: str = None):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor(dictionary=True)
+    try:
+        if subject_id:
+            cursor.execute("""
+                SELECT e.*, s.name as subject_name 
+                FROM exams e LEFT JOIN subjects s ON e.subject_id = s.id
+                WHERE e.subject_id = %s ORDER BY e.year DESC
+            """, (subject_id,))
+        else:
+            cursor.execute("""
+                SELECT e.*, s.name as subject_name 
+                FROM exams e LEFT JOIN subjects s ON e.subject_id = s.id
+                ORDER BY e.year DESC
+            """)
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/exams/{exam_id}")
+def get_exam_detail(exam_id: int):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT e.*, s.name as subject_name 
+            FROM exams e LEFT JOIN subjects s ON e.subject_id = s.id
+            WHERE e.id = %s
+        """, (exam_id,))
+        exam = cursor.fetchone()
+        if not exam:
+            raise HTTPException(status_code=404, detail="Không tìm thấy đề thi")
+
+        cursor.execute("SELECT * FROM exam_questions WHERE exam_id = %s", (exam_id,))
+        exam['questions'] = cursor.fetchall()
+        return exam
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.post("/api/exams")
+def create_exam(data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = """
+            INSERT INTO exams (title, subject_id, year, duration_minutes, description) 
+            VALUES (%s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (
+            data['title'], data['subject_id'], data['year'],
+            data.get('duration_minutes', 90), data.get('description', '')
+        ))
+        conn.commit()
+        return {"status": "success", "id": cursor.lastrowid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.put("/api/exams/{exam_id}")
+def update_exam(exam_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = """
+            UPDATE exams SET title=%s, subject_id=%s, year=%s, 
+            duration_minutes=%s, description=%s WHERE id=%s
+        """
+        cursor.execute(query, (
+            data['title'], data['subject_id'], data['year'],
+            data.get('duration_minutes', 90), data.get('description', ''), exam_id
+        ))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.delete("/api/exams/{exam_id}")
+def delete_exam(exam_id: int):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        # exam_questions sẽ tự xóa nhờ ON DELETE CASCADE
+        cursor.execute("DELETE FROM exams WHERE id = %s", (exam_id,))
+        conn.commit()
+        return {"status": "success", "message": "Đã xóa đề thi"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# =============================================
+# --- QUẢN LÝ CÂU HỎI TRONG ĐỀ THI ---
+# =============================================
+
+@app.post("/api/exams/{exam_id}/questions")
+def add_exam_question(exam_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = """
+            INSERT INTO exam_questions 
+            (exam_id, content, option_a, option_b, option_c, option_d, correct_answer, explanation) 
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (
+            exam_id, data['content'],
+            data['option_a'], data['option_b'], data['option_c'], data['option_d'],
+            data['correct_answer'].upper(), data.get('explanation', '')
+        ))
+        conn.commit()
+        return {"status": "success", "id": cursor.lastrowid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.put("/api/exam-questions/{q_id}")
+def update_exam_question(q_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        query = """
+            UPDATE exam_questions SET content=%s, option_a=%s, option_b=%s,
+            option_c=%s, option_d=%s, correct_answer=%s, explanation=%s WHERE id=%s
+        """
+        cursor.execute(query, (
+            data['content'], data['option_a'], data['option_b'],
+            data['option_c'], data['option_d'],
+            data['correct_answer'].upper(), data.get('explanation', ''), q_id
+        ))
+        conn.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.delete("/api/exam-questions/{q_id}")
+def delete_exam_question(q_id: int):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM exam_questions WHERE id = %s", (q_id,))
+        conn.commit()
+        return {"status": "success", "message": "Đã xóa câu hỏi"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+# =============================================
+# --- IMPORT CSV CAU HOI VAO DE THI ---
+# =============================================
+
+@app.post("/api/exams/{exam_id}/questions/import")
+async def import_exam_questions(exam_id: int, file: UploadFile = File(...)):
+    content = await file.read()
+    text = content.decode("utf-8-sig")
+    reader = csv.DictReader(io.StringIO(text))
+    required = {"content", "option_a", "option_b", "option_c", "option_d", "correct_answer"}
+    rows = list(reader)
+    if not rows:
+        raise HTTPException(status_code=400, detail="File CSV rong hoac sai dinh dang!")
+    if not required.issubset(set(reader.fieldnames or [])):
+        raise HTTPException(status_code=400, detail=f"File CSV thieu cot. Can co: {', '.join(required)}")
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        inserted = 0
+        for row in rows:
+            cursor.execute("""
+                INSERT INTO exam_questions
+                (exam_id, content, option_a, option_b, option_c, option_d, correct_answer, explanation)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                exam_id, row["content"].strip(),
+                row["option_a"].strip(), row["option_b"].strip(),
+                row["option_c"].strip(), row["option_d"].strip(),
+                row["correct_answer"].strip().upper(),
+                row.get("explanation", "").strip()
+            ))
+            inserted += 1
+        conn.commit()
+        return {"status": "success", "inserted": inserted, "message": f"Da import {inserted} cau hoi thanh cong!"}
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
         conn.close()

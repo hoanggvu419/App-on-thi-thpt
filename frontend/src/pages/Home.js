@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { BookOpen, ChevronRight, GraduationCap, HelpCircle } from 'lucide-react';
+import { BookOpen, Zap, GraduationCap, HelpCircle, X, ChevronRight } from 'lucide-react';
 import * as Icons from 'lucide-react'; 
 
 const Home = () => {
   // 1. Đưa useState và useEffect VÀO TRONG function Home
   const [subjects, setSubjects] = useState([]);
+  const [quickModal, setQuickModal] = useState({ open: false, subject: null });
+  const [numQuestions, setNumQuestions] = useState(20);
+  const [timeLimit, setTimeLimit] = useState(30);
+  const navigate = useNavigate();
 
   useEffect(() => {
     axios.get('http://127.0.0.1:8000/api/subjects')
@@ -20,6 +24,23 @@ const Home = () => {
   const renderIcon = (iconName) => {
     const IconComponent = Icons[iconName];
     return IconComponent ? <IconComponent size={32} /> : <HelpCircle size={32} />;
+  };
+
+  const handleOpenQuickModal = (sub) => {
+    setNumQuestions(20);
+    setTimeLimit(30);
+    setQuickModal({ open: true, subject: sub });
+  };
+
+  const handleStartQuick = () => {
+    navigate(`/quiz/${quickModal.subject.id}`, {
+      state: {
+        numQuestions: parseInt(numQuestions),
+        timeLimit: parseInt(timeLimit),
+        quickPractice: true
+      }
+    });
+    setQuickModal({ open: false, subject: null });
   };
 
   return (
@@ -64,12 +85,12 @@ const Home = () => {
               <h3 className="text-xl font-bold text-gray-800 mb-3">{sub.name}</h3>
               <p className="text-gray-500 text-sm mb-6">{sub.description}</p>
               
-              <Link 
-                to={`/quiz/${sub.id}`} 
-                className="flex items-center text-blue-600 font-semibold group-hover:gap-2 transition-all"
+              <button
+                onClick={() => handleOpenQuickModal(sub)}
+                className="flex items-center gap-2 text-orange-500 font-semibold hover:text-orange-600 transition-all"
               >
-                Luyện tập ngay <ChevronRight size={18} />
-              </Link>
+                <Zap size={16} /> Luyện tập nhanh
+              </button>
 
               {/* Dropdown Menu khi Hover (Lưu ý: sub.chapters phải là mảng hoặc cần xử lý JSON nếu lưu dạng string) */}
               <div className="absolute left-0 right-0 top-full mt-2 bg-white shadow-2xl rounded-xl p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-20 border border-gray-100 translate-y-2 group-hover:translate-y-0">
@@ -87,6 +108,61 @@ const Home = () => {
           ))}
         </div>
       </div>
+
+      {/* Modal Luyện tập nhanh */}
+      {quickModal.open && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-xl font-bold text-gray-800">Luyện tập nhanh</h2>
+              <button onClick={() => setQuickModal({ open: false, subject: null })} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-blue-600 font-semibold mb-6">{quickModal.subject?.name}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Số câu hỏi</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={numQuestions}
+                  onChange={e => setNumQuestions(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Thời gian làm bài (phút)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={180}
+                  value={timeLimit}
+                  onChange={e => setTimeLimit(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => setQuickModal({ open: false, subject: null })}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleStartQuick}
+                className="flex-1 py-3 rounded-xl bg-orange-500 text-white font-bold hover:bg-orange-600 transition-all shadow-lg shadow-orange-100"
+              >
+                Bắt đầu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,38 +1,63 @@
-import React from 'react';
-import { Calendar, Clock, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Calendar, ExternalLink } from 'lucide-react';
 
 const News = () => {
-  const newsList = [
-    { id: 1, title: "Cập nhật phương án thi tốt nghiệp THPT năm 2026", date: "04/02/2026", type: "Thông báo" },
-    { id: 2, title: "Top 5 mẹo ôn thi môn Tiếng Anh đạt điểm 9+", date: "02/02/2026", type: "Bí kíp" },
-    { id: 3, title: "Lịch thi thử đợt 1 các trường chuyên toàn quốc", date: "30/01/2026", type: "Tin tức" },
-  ];
+  const [newsList, setNewsList] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://127.0.0.1:8000/api/news')
+      .then(res => setNewsList(res.data))
+      .catch(err => console.error("Lỗi tải tin tức:", err));
+  }, []);
+
+  const handleClick = (news) => {
+    if (news.url) {
+      window.open(news.url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold text-gray-800 border-l-4 border-orange-500 pl-4 mb-8">Tin tức giáo dục</h1>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Tin nổi bật bên trái */}
-        <div className="lg:col-span-2 space-y-6">
-          {newsList.map(news => (
-            <div key={news.id} className="flex gap-6 bg-white p-4 rounded-2xl border border-gray-100 hover:border-orange-200 cursor-pointer group transition">
-              <div className="w-40 h-28 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0">
-                <img src={`https://caodang.fpt.edu.vn/wp-content/uploads/2024/06/Content-10.png`} alt="img" className="w-full h-full object-cover" />
-              </div>
-              <div className="flex flex-col justify-between py-1">
-                <div>
-                  <span className="text-xs font-bold text-orange-600 uppercase tracking-tighter">{news.type}</span>
-                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-orange-600 transition mt-1">{news.title}</h2>
+
+      <div className="space-y-4">
+        {newsList.length === 0 && (
+          <p className="text-center text-gray-400 py-16">Chưa có tin tức nào.</p>
+        )}
+        {newsList.map(news => (
+          <div
+            key={news.id}
+            onClick={() => handleClick(news)}
+            className={`bg-white p-5 rounded-2xl border border-gray-100 hover:border-orange-300 hover:shadow-md transition group ${news.url ? 'cursor-pointer' : 'cursor-default'}`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-gray-800 group-hover:text-orange-600 transition leading-snug">
+                  {news.title}
+                </h2>
+                {news.content && (
+                  <p className="text-gray-500 text-sm mt-2 line-clamp-2">{news.content}</p>
+                )}
+                <div className="flex items-center gap-3 mt-3 text-xs text-gray-400">
+                  {news.date_posted && (
+                    <span className="flex items-center gap-1">
+                      <Calendar size={13} /> {news.date_posted}
+                    </span>
+                  )}
+                  {news.type && (
+                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 font-semibold uppercase tracking-tight">
+                      {news.type}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-4 text-gray-400 text-sm">
-                  <span className="flex items-center gap-1"><Calendar size={14} /> {news.date}</span>
-                  <span className="flex items-center gap-1"><Clock size={14} /> 5 phút đọc</span>
-                </div>
               </div>
+              {news.url && (
+                <ExternalLink size={18} className="text-gray-300 group-hover:text-orange-400 transition flex-shrink-0 mt-1" />
+              )}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );

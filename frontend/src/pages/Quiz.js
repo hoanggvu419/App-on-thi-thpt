@@ -19,6 +19,19 @@ const Quiz = () => {
   useEffect(() => { questionsRef.current = questions; }, [questions]);
   useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
 
+  const saveResult = (score, total) => {
+    const stored = localStorage.getItem('user');
+    if (!stored) return;
+    const u = JSON.parse(stored);
+    axios.post('http://127.0.0.1:8000/api/results', {
+      user_id: u.id,
+      subject_id: subject,
+      exam_title: `Luyện tập nhanh - ${subject}`,
+      score,
+      total,
+    }).catch(err => console.error('Lỗi lưu kết quả:', err));
+  };
+
   useEffect(() => {
     // API lọc theo môn học từ Backend của bạn
     axios.get(`http://127.0.0.1:8000/api/questions/${subject}`)
@@ -41,6 +54,7 @@ const Quiz = () => {
       if (isCorrect) score++;
       return { ...q, userAnswer: ua[q.id], isCorrect };
     });
+    saveResult(score, qs.length);
     navigate('/result', { state: { score, total: qs.length, details } });
   };
 
@@ -73,8 +87,7 @@ const handleNopBai = () => {
       isCorrect
     };
   });
-
-  // Chuyển sang trang kết quả và gửi kèm dữ liệu
+  saveResult(score, questions.length);
   navigate('/result', { state: { score, total: questions.length, details } });
 };
 // Hàm để lưu đáp án khi người dùng bấm chọn A, B, C hoặc D

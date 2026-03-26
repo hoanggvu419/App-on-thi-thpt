@@ -12,6 +12,8 @@ import Register from './pages/Register';
 import ExamList from './pages/ExamList';
 import ExamTake from './pages/ExamTake';
 import ExamEditor from './pages/ExamEditor';
+import HistoryPage from './pages/History';
+import Profile from './pages/Profile';
 import { Navigate } from 'react-router-dom';
 
 
@@ -46,8 +48,9 @@ function App() {
 
           <Route path="/document" element={<Document />} />
           <Route path="/news" element={<News />} />
-          <Route path="/admin" element={<Admin />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/exams" element={<ExamList />} />
           <Route path="/exams/:examId" element={<ExamTake />} />
           <Route path="/admin/exams/:examId/edit" element={

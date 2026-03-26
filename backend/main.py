@@ -6,6 +6,31 @@ import io
 
 app = FastAPI()
 
+
+@app.on_event("startup")
+def create_tables():
+    conn = mysql.connector.connect(**{
+        "host": "localhost", "user": "root",
+        "password": "hoangbi410", "database": "app_onthi_thpt"
+    })
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS quiz_results (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            subject_id VARCHAR(50) DEFAULT NULL,
+            exam_id INT DEFAULT NULL,
+            exam_title VARCHAR(255) NOT NULL,
+            score INT NOT NULL,
+            total INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_id (user_id)
+        )
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
@@ -601,6 +626,83 @@ async def import_exam_questions(exam_id: int, file: UploadFile = File(...)):
         return {"status": "success", "inserted": inserted, "message": f"Da import {inserted} cau hoi thanh cong!"}
     except Exception as e:
         conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# =============================================
+# --- LỊCH SỬ KẾT QUẢ ---
+# =============================================
+
+@app.post("/api/results")
+def save_result(data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO quiz_results (user_id, subject_id, exam_id, exam_title, score, total)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            data['user_id'], data.get('subject_id'), data.get('exam_id'),
+            data['exam_title'], data['score'], data['total']
+        ))
+        conn.commit()
+        return {"status": "success", "id": cursor.lastrowid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@app.get("/api/results")
+def get_results(user_id: int):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT id, user_id, subject_id, exam_id, exam_title, score, total,
+                   DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%s') AS created_at
+            FROM quiz_results WHERE user_id = %s ORDER BY created_at DESC
+        """, (user_id,))
+        return cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+# =============================================
+# --- CẬP NHẬT THÔNG TIN NGƯỜI DÙNG ---
+# =============================================
+
+@app.put("/api/users/{user_id}")
+def update_user(user_id: int, data: dict):
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor(dictionary=True)
+    try:
+        if data.get('password'):
+            cursor.execute("SELECT password FROM users WHERE id = %s", (user_id,))
+            row = cursor.fetchone()
+            if not row or row['password'] != data.get('old_password', ''):
+                raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng!")
+            cursor.execute(
+                "UPDATE users SET full_name=%s, password=%s WHERE id=%s",
+                (data['full_name'], data['password'], user_id)
+            )
+        else:
+            cursor.execute(
+                "UPDATE users SET full_name=%s WHERE id=%s",
+                (data['full_name'], user_id)
+            )
+        conn.commit()
+        cursor.execute("SELECT id, username, full_name, role FROM users WHERE id=%s", (user_id,))
+        user = cursor.fetchone()
+        return {"status": "success", "user": user}
+    except HTTPException:
+        raise
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         cursor.close()

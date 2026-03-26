@@ -17,8 +17,10 @@ const ExamTake = () => {
   // Refs để tránh stale closure trong auto-submit
   const questionsRef = useRef([]);
   const userAnswersRef = useRef({});
+  const examRef = useRef(null);
   useEffect(() => { questionsRef.current = questions; }, [questions]);
   useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
+  useEffect(() => { examRef.current = exam; }, [exam]);
 
   useEffect(() => {
     axios.get(`http://127.0.0.1:8000/api/exams/${examId}`)
@@ -30,6 +32,20 @@ const ExamTake = () => {
       .catch(err => console.log(err));
   }, [examId]);
 
+  const saveResult = (score, total) => {
+    const stored = localStorage.getItem('user');
+    if (!stored) return;
+    const u = JSON.parse(stored);
+    const currentExam = examRef.current;
+    axios.post('http://127.0.0.1:8000/api/results', {
+      user_id: u.id,
+      exam_id: parseInt(examId),
+      exam_title: currentExam?.title || `Đề thi #${examId}`,
+      score,
+      total,
+    }).catch(err => console.error('Lỗi lưu kết quả:', err));
+  };
+
   const doSubmit = (qs, ua) => {
     let score = 0;
     const details = qs.map(q => {
@@ -37,6 +53,7 @@ const ExamTake = () => {
       if (isCorrect) score++;
       return { ...q, userAnswer: ua[q.id], isCorrect };
     });
+    saveResult(score, qs.length);
     navigate('/result', { state: { score, total: qs.length, details } });
   };
 

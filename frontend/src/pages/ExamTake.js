@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bookmark, BookmarkCheck } from 'lucide-react';
 
 const ExamTake = () => {
   const { examId } = useParams();
@@ -13,11 +13,13 @@ const ExamTake = () => {
   const [userAnswers, setUserAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [flagged, setFlagged] = useState(new Set());
 
   // Refs để tránh stale closure trong auto-submit
   const questionsRef = useRef([]);
   const userAnswersRef = useRef({});
   const examRef = useRef(null);
+  const submittedRef = useRef(false);
   useEffect(() => { questionsRef.current = questions; }, [questions]);
   useEffect(() => { userAnswersRef.current = userAnswers; }, [userAnswers]);
   useEffect(() => { examRef.current = exam; }, [exam]);
@@ -47,14 +49,25 @@ const ExamTake = () => {
   };
 
   const doSubmit = (qs, ua) => {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
     let score = 0;
     const details = qs.map(q => {
       const isCorrect = (ua[q.id] || '') === (q.correct_answer || '').toLowerCase();
       if (isCorrect) score++;
       return { ...q, userAnswer: ua[q.id], isCorrect };
     });
+    const currentExam = examRef.current;
     saveResult(score, qs.length);
-    navigate('/result', { state: { score, total: qs.length, details } });
+    navigate('/result', {
+      state: {
+        score,
+        total: qs.length,
+        details,
+        subjectName: currentExam?.title || `Đề thi #${examId}`,
+        retryPath: `/exams/${examId}`,
+      }
+    });
   };
 
   // Đếm ngược
@@ -70,6 +83,15 @@ const ExamTake = () => {
 
   const handleSelectOption = (qId, opt) => {
     setUserAnswers(prev => ({ ...prev, [qId]: opt }));
+  };
+
+  const toggleFlag = (qId) => {
+    setFlagged(prev => {
+      const next = new Set(prev);
+      if (next.has(qId)) next.delete(qId);
+      else next.add(qId);
+      return next;
+    });
   };
 
   const handleNopBai = () => {
@@ -103,9 +125,18 @@ const ExamTake = () => {
     <div className="max-w-7xl mx-auto p-6 flex flex-col md:flex-row gap-8">
       {/* Cột trái: nội dung câu hỏi */}
       <div className="flex-1 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-        <div className="flex justify-between mb-2">
+        <div className="flex justify-between items-center mb-2">
           <span className="text-blue-600 font-bold">{exam.title}</span>
-          <span className="text-gray-400 text-sm">{exam.subject_name || exam.subject_id} — {exam.year}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm">{exam.subject_name || exam.subject_id} — {exam.year}</span>
+            <button
+              onClick={() => toggleFlag(q.id)}
+              title={flagged.has(q.id) ? 'Bỏ đánh dấu' : 'Đánh dấu câu này'}
+              className={`p-2 rounded-lg transition ${flagged.has(q.id) ? 'text-yellow-500 bg-yellow-50' : 'text-gray-300 hover:text-yellow-400 hover:bg-yellow-50'}`}
+            >
+              {flagged.has(q.id) ? <BookmarkCheck size={20} /> : <Bookmark size={20} />}
+            </button>
+          </div>
         </div>
         <p className="text-gray-400 text-sm mb-6">Câu {currentIdx + 1} / {questions.length}</p>
 
@@ -173,33 +204,45 @@ const ExamTake = () => {
         )}
 
         {/* Grid số câu */}
-        <div className="grid grid-cols-5 gap-2 mb-6">
+        <div className="grid grid-cols-5 gap-2 mb-4">
           {questions.map((_, index) => {
             const qId = questions[index].id;
             const isAnswered = userAnswers[qId] !== undefined;
+            const isFlagged = flagged.has(qId);
             return (
               <button
                 key={index}
                 onClick={() => setCurrentIdx(index)}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-all text-sm ${
+                className={`relative w-10 h-10 rounded-lg flex items-center justify-center font-medium transition-all text-sm ${
                   currentIdx === index
                     ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-300'
-                    : isAnswered
-                      ? 'bg-green-100 text-green-700 border border-green-200'
-                      : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
+                    : isFlagged && isAnswered
+                      ? 'bg-yellow-100 text-yellow-700 border-2 border-yellow-400'
+                      : isFlagged
+                        ? 'bg-yellow-50 text-yellow-600 border-2 border-yellow-300'
+                        : isAnswered
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
                 }`}
               >
                 {index + 1}
+                {isFlagged && currentIdx !== index && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full" />
+                )}
               </button>
             );
           })}
         </div>
 
         {/* Chú thích */}
-        <div className="flex gap-4 text-xs text-gray-400 mb-6">
+        <div className="flex flex-wrap gap-3 text-xs text-gray-400 mb-6">
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-200 inline-block"></span> Đã làm</span>
+          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border-2 border-yellow-400 inline-block"></span> Đánh dấu</span>
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-gray-100 inline-block"></span> Chưa làm</span>
         </div>
+        {flagged.size > 0 && (
+          <p className="text-xs text-yellow-600 font-semibold mb-3">⧖ {flagged.size} câu đánh dấu</p>
+        )}
 
         <button
           onClick={handleNopBai}

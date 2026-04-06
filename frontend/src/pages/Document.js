@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FileText, Download, Eye, Search, X } from 'lucide-react';
+import { SUBJECTS } from '../constants/subjects';
 
 const Document = () => {
   const [docs, setDocs] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  const subjects = SUBJECTS;
   const [activeSubject, setActiveSubject] = useState('all');
   const [search, setSearch] = useState('');
   const [previewDoc, setPreviewDoc] = useState(null);
@@ -13,9 +14,6 @@ const Document = () => {
     axios.get('http://127.0.0.1:8000/api/document')
       .then(res => setDocs(res.data))
       .catch(err => console.error("Lỗi tải tài liệu:", err));
-    axios.get('http://127.0.0.1:8000/api/subjects')
-      .then(res => setSubjects(res.data))
-      .catch(err => console.error("Lỗi tải môn học:", err));
   }, []);
 
   const filtered = docs.filter(doc => {

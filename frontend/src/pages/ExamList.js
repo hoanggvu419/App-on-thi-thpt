@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { FileText, Clock, ChevronRight, BookOpen } from 'lucide-react';
+import { FileText, Clock, ChevronRight, BookOpen, Search, X } from 'lucide-react';
+import { SUBJECTS } from '../constants/subjects';
 
 const ExamList = () => {
-  const [subjects, setSubjects] = useState([]);
+  const subjects = SUBJECTS;
   const [exams, setExams] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // Đọc query ?q= từ URL (từ thanh tìm kiếm Navbar)
+  const searchParam = new URLSearchParams(location.search).get('q') || '';
+  const [search, setSearch] = useState(searchParam);
+
+  // Khi URL thay đổi (tìm kiếm mới từ navbar), cập nhật input
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/subjects')
-      .then(r => setSubjects(r.data))
-      .catch(() => {});
-  }, []);
+    setSearch(new URLSearchParams(location.search).get('q') || '');
+  }, [location.search]);
 
   useEffect(() => {
     setLoading(true);
@@ -27,8 +32,11 @@ const ExamList = () => {
       .finally(() => setLoading(false));
   }, [selectedSubject]);
 
-  // Nhóm đề thi theo năm (giảm dần)
-  const byYear = exams.reduce((acc, exam) => {
+  // Nhóm đề thi theo năm (giảm dần), áp dụng lọc tìm kiếm
+  const filtered = exams.filter(e =>
+    !search || e.title.toLowerCase().includes(search.toLowerCase())
+  );
+  const byYear = filtered.reduce((acc, exam) => {
     const yr = exam.year || 'Khác';
     if (!acc[yr]) acc[yr] = [];
     acc[yr].push(exam);
@@ -49,8 +57,22 @@ const ExamList = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-10">
-        {/* Bộ lọc theo môn */}
+      <div className="max-w-6xl mx-auto px-6 py-10">        {/* Thanh tìm kiếm tại chỗ */}
+        <div className="relative mb-6 max-w-md">
+          <input
+            type="text"
+            placeholder="Tìm kiếm đề thi..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full border border-gray-200 rounded-full py-2.5 pl-10 pr-10 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+          />
+          <Search className="absolute left-3.5 top-3 text-gray-400" size={16} />
+          {search && (
+            <button onClick={() => setSearch('')} className="absolute right-3.5 top-3 text-gray-400 hover:text-gray-600">
+              <X size={16} />
+            </button>
+          )}
+        </div>        {/* Bộ lọc theo môn */}
         <div className="flex flex-wrap gap-3 mb-10">
           <button
             onClick={() => setSelectedSubject('')}
@@ -86,8 +108,11 @@ const ExamList = () => {
         {!loading && years.length === 0 && (
           <div className="flex flex-col items-center justify-center py-24 text-gray-400">
             <BookOpen size={56} className="mb-4 opacity-30" />
-            <p className="text-lg font-semibold">Chưa có đề thi nào</p>
-            <p className="text-sm mt-1">Đề thi sẽ được cập nhật sớm.</p>
+            <p className="text-lg font-semibold">{search ? `Không tìm thấy đề thi với từ khóa "${search}"` : 'Chưa có đề thi nào'}</p>
+            <p className="text-sm mt-1">{search ? '' : 'Đề thi sẽ được cập nhật sớm.'}</p>
+            {search && (
+              <button onClick={() => setSearch('')} className="mt-4 text-sm text-blue-600 font-semibold hover:underline">Xóa bộ lọc</button>
+            )}
           </div>
         )}
 

@@ -1,24 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import { BookOpen, Zap, GraduationCap, HelpCircle, X, ChevronRight } from 'lucide-react';
-import * as Icons from 'lucide-react'; 
+import * as Icons from 'lucide-react';
+import { SUBJECTS } from '../constants/subjects';
 
 const Home = () => {
-  // 1. Đưa useState và useEffect VÀO TRONG function Home
-  const [subjects, setSubjects] = useState([]);
+  const subjects = SUBJECTS;
   const [quickModal, setQuickModal] = useState({ open: false, subject: null });
   const [numQuestions, setNumQuestions] = useState(20);
   const [timeLimit, setTimeLimit] = useState(30);
+  const [practiceMode, setPracticeMode] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/subjects')
-      .then(res => {
-        setSubjects(res.data);
-      })
-      .catch(err => console.error("Lỗi kết nối API:", err));
-  }, []);
 
   // 2. Hàm hỗ trợ hiển thị Icon động từ chuỗi (ví dụ: "Atom" -> <Atom />)
   const renderIcon = (iconName) => {
@@ -29,6 +21,7 @@ const Home = () => {
   const handleOpenQuickModal = (sub) => {
     setNumQuestions(20);
     setTimeLimit(30);
+    setPracticeMode(false);
     setQuickModal({ open: true, subject: sub });
   };
 
@@ -36,8 +29,9 @@ const Home = () => {
     navigate(`/quiz/${quickModal.subject.id}`, {
       state: {
         numQuestions: parseInt(numQuestions),
-        timeLimit: parseInt(timeLimit),
-        quickPractice: true
+        timeLimit: practiceMode ? null : parseInt(timeLimit),
+        quickPractice: true,
+        practiceMode,
       }
     });
     setQuickModal({ open: false, subject: null });
@@ -55,7 +49,9 @@ const Home = () => {
             <p className="text-blue-100 text-lg mb-8">
               Hệ thống ngân hàng câu hỏi bám sát cấu trúc đề thi của Bộ Giáo dục, giúp bạn tự tin chinh phục điểm 9+.
             </p>
-            <button className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full transition-all shadow-lg">
+            <button
+              onClick={() => navigate('/exams')}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-full transition-all shadow-lg">
               Bắt đầu học ngay
             </button>
           </div>
@@ -119,7 +115,23 @@ const Home = () => {
                 <X size={20} />
               </button>
             </div>
-            <p className="text-blue-600 font-semibold mb-6">{quickModal.subject?.name}</p>
+            <p className="text-blue-600 font-semibold mb-4">{quickModal.subject?.name}</p>
+
+            {/* Chế độ thi */}
+            <div className="flex rounded-xl overflow-hidden border border-gray-200 mb-5">
+              <button
+                onClick={() => setPracticeMode(false)}
+                className={`flex-1 py-2 text-sm font-bold transition ${!practiceMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                🏆 Thi thử
+              </button>
+              <button
+                onClick={() => setPracticeMode(true)}
+                className={`flex-1 py-2 text-sm font-bold transition ${practiceMode ? 'bg-orange-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+              >
+                📚 Luyện tập
+              </button>
+            </div>
 
             <div className="space-y-4">
               <div>
@@ -133,17 +145,19 @@ const Home = () => {
                   className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Thời gian làm bài (phút)</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={180}
-                  value={timeLimit}
-                  onChange={e => setTimeLimit(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
-                />
-              </div>
+              {!practiceMode && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Thời gian làm bài (phút)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={180}
+                    value={timeLimit}
+                    onChange={e => setTimeLimit(e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-400 text-gray-800"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 mt-8">

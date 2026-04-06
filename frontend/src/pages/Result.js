@@ -1,19 +1,45 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, RefreshCcw, Home } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCcw, Home, RotateCcw } from 'lucide-react';
 
 const Result = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  // Nhận dữ liệu từ trang Quiz gửi sang
-  const { score, total, details } = location.state || { score: 0, total: 0, details: [] };
+  const { score, total, details, subjectName, retryPath, retryState } = location.state || { score: 0, total: 0, details: [] };
+
+  const percent = total > 0 ? Math.round((score / total) * 100) : 0;
+  const score10 = total > 0 ? (score / total * 10).toFixed(2) : '0.00';
+  const percentColor = percent >= 80 ? 'text-green-500' : percent >= 50 ? 'text-orange-500' : 'text-red-500';
+
+  const wrongDetails = details.filter(d => !d.isCorrect);
+
+  const handleRetry = () => {
+    if (retryPath) {
+      navigate(retryPath, retryState ? { state: retryState } : {});
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleReviewWrong = () => {
+    navigate('/quiz/review', {
+      state: { reviewQuestions: wrongDetails, practiceMode: true },
+    });
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-3xl shadow-xl p-8 text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Kết quả bài thi</h1>
-        <p className="text-gray-500 mb-6">Bạn đã hoàn thành bài ôn tập môn {details[0]?.subject}</p>
-        
+        {subjectName && (
+          <p className="text-gray-500 mb-4">Bạn đã hoàn thành: <span className="font-semibold text-blue-600">{subjectName}</span></p>
+        )}
+
+        {/* Điểm thang 10 — nổi bật */}
+        <div className={`text-7xl font-black mb-1 ${percentColor}`}>{score10}</div>
+        <p className="text-gray-400 text-sm font-medium mb-1">điểm / thang 10</p>
+        <p className="text-gray-300 text-xs mb-6">({percent}% — {score}/{total} câu đúng)</p>
+
         <div className="flex justify-center gap-12 mb-8">
           <div>
             <p className="text-4xl font-black text-green-500">{score}</p>
@@ -26,13 +52,20 @@ const Result = () => {
           </div>
         </div>
 
-        <div className="flex justify-center gap-4">
-          <button onClick={() => navigate('/')} className="flex items-center gap-2 bg-gray-100 text-gray-700 px-6 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
-            <Home size={20} /> Về trang chủ
+        <div className="flex flex-wrap justify-center gap-3">
+          <button onClick={() => navigate('/')} className="flex items-center gap-2 bg-gray-100 text-gray-700 px-5 py-3 rounded-xl font-bold hover:bg-gray-200 transition">
+            <Home size={18} /> Về trang chủ
           </button>
-          <button onClick={() => window.location.reload()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition">
-            <RefreshCcw size={20} /> Làm lại
-          </button>
+          {retryPath && (
+            <button onClick={handleRetry} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition">
+              <RefreshCcw size={18} /> Làm lại
+            </button>
+          )}
+          {wrongDetails.length > 0 && (
+            <button onClick={handleReviewWrong} className="flex items-center gap-2 bg-orange-500 text-white px-5 py-3 rounded-xl font-bold hover:bg-orange-600 shadow-lg shadow-orange-200 transition">
+              <RotateCcw size={18} /> Ôn lại {wrongDetails.length} câu sai
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, FileText, Newspaper, Plus, Edit, Trash2, X, Upload, Download, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, BookOpen, FileText, Newspaper, Plus, Edit, Trash2, X, Upload, Download, ClipboardList, Users } from 'lucide-react';
+import { SUBJECTS } from '../constants/subjects';
+
+const TAB_LABELS = {
+  subjects: 'Môn học',
+  questions: 'Câu hỏi',
+  document: 'Tài liệu',
+  news: 'Tin tức',
+  exams: 'Đề thi',
+  users: 'Người dùng',
+};
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState('subjects');
-  const [allSubjects, setAllSubjects] = useState([]);
+  const allSubjects = SUBJECTS;
   const [data, setData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -49,19 +59,7 @@ const Admin = () => {
     URL.revokeObjectURL(url);
   };
 
-  const fetchAllSubjects = async () => {
-    try {
-      const res = await axios.get('http://127.0.0.1:8000/api/subjects');
-      setAllSubjects(res.data); // Đổ dữ liệu vào hộp allSubjects
-    } catch (err) {
-      console.error("Lỗi lấy môn học:", err);
-    }
-  };
 
-  // Chạy hàm lấy môn học ngay khi trang web vừa load xong
-  useEffect(() => {
-    fetchAllSubjects();
-  }, []);
   // Hàm xử lý gửi dữ liệu lên Backend
   const handleSave = async (e) => {
   e.preventDefault();
@@ -148,13 +146,16 @@ const handleEdit = (item) => {
           <button onClick={() => setActiveTab('exams')} className={`w-full flex items-center gap-3 p-3 rounded-lg ${activeTab === 'exams' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600'}`}>
             <ClipboardList size={20} /> Đề thi
           </button>
+          <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 p-3 rounded-lg ${activeTab === 'users' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-600'}`}>
+            <Users size={20} /> Người dùng
+          </button>
         </nav>
       </div>
 
       {/* Nội dung bên phải */}
       <div className="flex-1 p-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800 capitalize">Quản lý {activeTab}</h1>
+          <h1 className="text-2xl font-bold text-gray-800 capitalize">Quản lý {TAB_LABELS[activeTab] || activeTab}</h1>
           <div className="flex items-center gap-3">
             {/* Nút Import CSV — chỉ hiện ở tab câu hỏi */}
             {activeTab === 'questions' && (
@@ -181,7 +182,12 @@ const handleEdit = (item) => {
                 </button>
               </>
             )}
-            <button onClick={() => setShowModal(true)} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            <button
+              onClick={() => setShowModal(true)}
+              className={`flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition ${
+                activeTab === 'users' || activeTab === 'subjects' ? 'hidden' : ''
+              }`}
+            >
               <Plus size={20} /> Thêm mới
             </button>
           </div>
@@ -192,6 +198,12 @@ const handleEdit = (item) => {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="p-4 font-bold text-gray-600">ID</th>
+                {activeTab === 'subjects' && (
+                  <>
+                    <th className="p-4 font-bold text-gray-600">Màu nền</th>
+                    <th className="p-4 font-bold text-gray-600">Icon</th>
+                  </>
+                )}
                 {activeTab === 'questions' && (
                   <th className="p-4 font-bold text-gray-600">Môn học</th>
                 )}
@@ -202,14 +214,32 @@ const handleEdit = (item) => {
                     <th className="p-4 font-bold text-gray-600">Thời gian</th>
                   </>
                 )}
-                <th className="p-4 font-bold text-gray-600">Nội dung / Tiêu đề</th>
+                <th className="p-4 font-bold text-gray-600">
+                  {activeTab === 'users' ? 'Họ và tên' : 'Nội dung / Tiêu đề'}
+                </th>
+                {activeTab === 'users' && (
+                  <th className="p-4 font-bold text-gray-600">Tên đăng nhập</th>
+                )}
+                {activeTab === 'users' && (
+                  <th className="p-4 font-bold text-gray-600">Vai trò</th>
+                )}
                 <th className="p-4 font-bold text-gray-600">Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {data.map((item) => (
+              {(activeTab === 'subjects' ? allSubjects : data).map((item) => (
                 <tr key={item.id} className="border-b hover:bg-gray-50 transition">
-                  <td className="p-4 text-gray-500">#{item.id}</td>
+                  <td className="p-4 text-gray-500">{item.id}</td>
+                  {activeTab === 'subjects' && (
+                    <>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${item.bg_class} ${item.color_class}`}>
+                          {item.bg_class}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-500 text-sm">{item.icon_name}</td>
+                    </>
+                  )}
                   {activeTab === 'questions' && (
                     <td className="p-4">
                       <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-600 uppercase">
@@ -229,11 +259,30 @@ const handleEdit = (item) => {
                     </>
                   )}
                   <td className="p-4 text-gray-800 font-medium">
-                    {item.name || item.title || item.content}
+                    {activeTab === 'users' ? item.full_name : (item.name || item.title || item.content)}
                   </td>
+                  {activeTab === 'users' && (
+                    <td className="p-4 text-gray-500">@{item.username}</td>
+                  )}
+                  {activeTab === 'users' && (
+                    <td className="p-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        item.role === 'admin' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
+                      }`}>
+                        {item.role === 'admin' ? 'Admin' : 'Học sinh'}
+                      </span>
+                    </td>
+                  )}
                   <td className="p-4 flex gap-2">
-                    <button onClick={() => handleEdit(item)} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition"><Edit size={18} /></button>
-                    <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><Trash2 size={18} /></button>
+                    {activeTab !== 'users' && activeTab !== 'subjects' && (
+                      <button onClick={() => handleEdit(item)} className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition"><Edit size={18} /></button>
+                    )}
+                    {activeTab !== 'users' && activeTab !== 'subjects' && (
+                      <button onClick={() => handleDelete(item.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><Trash2 size={18} /></button>
+                    )}
+                    {activeTab === 'subjects' && (
+                      <span className="text-xs text-gray-400 italic px-2">Cố định</span>
+                    )}
                     {activeTab === 'exams' && (
                       <button
                         onClick={() => navigate(`/admin/exams/${item.id}/edit`)}
@@ -274,6 +323,15 @@ const handleEdit = (item) => {
                 <textarea placeholder="Mô tả" className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   value={formData.description || ''}
                   onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                <input type="text" placeholder="Tên icon Lucide (VD: Atom, Calculator, FlaskConical)" className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={formData.icon_name || ''}
+                  onChange={(e) => setFormData({...formData, icon_name: e.target.value})} />
+                <input type="text" placeholder="Class nền (VD: bg-blue-50)" className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={formData.bg_class || ''}
+                  onChange={(e) => setFormData({...formData, bg_class: e.target.value})} />
+                <input type="text" placeholder="Class màu chữ (VD: text-blue-600)" className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={formData.color_class || ''}
+                  onChange={(e) => setFormData({...formData, color_class: e.target.value})} />
               </>
             )}
             {/* Tab Câu hỏi */}

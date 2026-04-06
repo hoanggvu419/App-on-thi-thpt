@@ -1,12 +1,21 @@
 import React, {useEffect, useState, useRef} from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, User, LogOut, History, ChevronDown, UserCircle } from 'lucide-react'; 
+import { Search, User, LogOut, History, ChevronDown, UserCircle } from 'lucide-react';
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (!q) return;
+    navigate(`/exams?q=${encodeURIComponent(q)}`);
+    setSearchQuery('');
+  };
 
   useEffect(() => {
     const loggedInUser = localStorage.getItem('user');
@@ -55,12 +64,18 @@ const Navbar = () => {
       {/* 3. Thanh tìm kiếm và Nút hành động */}
       <div className="flex items-center gap-4">
         <div className="relative hidden lg:block">
-          <input 
-            type="text" 
-            placeholder="Tìm kiếm..." 
-            className="bg-gray-100 border-none rounded-full py-2 px-10 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
-          />
-          <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
+          <form onSubmit={handleSearch}>
+            <input
+              type="text"
+              placeholder="Tìm kiếm đề thi..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="bg-gray-100 border-none rounded-full py-2 px-10 text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
+            />
+            <button type="submit" className="absolute left-3 top-2.5">
+              <Search className="text-gray-400 w-4 h-4" />
+            </button>
+          </form>
         </div>
 
         {user ? (

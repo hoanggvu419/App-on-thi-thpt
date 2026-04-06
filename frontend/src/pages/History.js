@@ -133,12 +133,22 @@ const HistoryPage = () => {
                     </div>
                   </div>
 
-                  {/* Score */}
-                  <div className="text-right flex-shrink-0">
-                    <p className={`text-2xl font-black ${style.text}`}>
-                      {r.score}<span className="text-base font-semibold text-gray-300">/{r.total}</span>
-                    </p>
-                    <p className="text-xs text-gray-400">câu đúng</p>
+                  {/* Score + retake */}
+                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-2">
+                    <div>
+                      <p className={`text-2xl font-black ${style.text}`}>
+                        {r.score}<span className="text-base font-semibold text-gray-300">/{r.total}</span>
+                      </p>
+                      <p className="text-xs text-gray-400">câu đúng</p>
+                    </div>
+                    {r.exam_id && (
+                      <button
+                        onClick={() => navigate(`/exams/${r.exam_id}`)}
+                        className="text-xs font-semibold text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-400 px-3 py-1 rounded-full transition"
+                      >
+                        Làm lại
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

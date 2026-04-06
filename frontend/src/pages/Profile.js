@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { User, Lock, Save, History, ShieldCheck, CheckCircle, AlertCircle } from 'lucide-react';
+import { SUBJECTS } from '../constants/subjects';
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ const Profile = () => {
 
   // Thống kê
   const [stats, setStats] = useState({ total: 0, avg: 0, best: 0 });
+  const [subjectStats, setSubjectStats] = useState([]);
 
   useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -39,6 +41,24 @@ const Profile = () => {
           avg: Math.round(percents.reduce((a, b) => a + b, 0) / percents.length),
           best: Math.max(...percents),
         });
+
+        // Thống kê theo môn
+        const bySubject = {};
+        results.forEach(r => {
+          if (!r.subject_id) return;
+          if (!bySubject[r.subject_id]) bySubject[r.subject_id] = [];
+          bySubject[r.subject_id].push(Math.round((r.score / r.total) * 100));
+        });
+        const sStats = Object.entries(bySubject).map(([sid, ps]) => ({
+          subject_id: sid,
+          name: SUBJECTS.find(s => s.id === sid)?.name || sid,
+          color: SUBJECTS.find(s => s.id === sid)?.color_class || 'text-blue-600',
+          bg: SUBJECTS.find(s => s.id === sid)?.bg_class || 'bg-blue-50',
+          count: ps.length,
+          avg: Math.round(ps.reduce((a, b) => a + b, 0) / ps.length),
+          best: Math.max(...ps),
+        }));
+        setSubjectStats(sStats);
       })
       .catch(() => {});
   }, []);
@@ -238,6 +258,27 @@ const Profile = () => {
           </button>
         </form>
       </div>
+
+      {/* Thống kê theo môn */}
+      {subjectStats.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="text-lg font-bold text-gray-800 mb-4">📊 Thống kê theo môn</h2>
+          <div className="grid grid-cols-1 gap-3">
+            {subjectStats.map(s => (
+              <div key={s.subject_id} className={`flex items-center justify-between p-3 rounded-xl ${s.bg}`}>
+                <div>
+                  <p className={`font-bold text-sm ${s.color}`}>{s.name}</p>
+                  <p className="text-xs text-gray-400">{s.count} bài đã làm</p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-lg font-black ${s.color}`}>{s.avg}%</p>
+                  <p className="text-xs text-gray-400">TB • cao nhất {s.best}%</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

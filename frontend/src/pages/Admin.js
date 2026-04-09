@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, FileText, Newspaper, Plus, Edit, Trash2, X, Upload, Download, ClipboardList, Users } from 'lucide-react';
+import { LayoutDashboard, BookOpen, FileText, Newspaper, Plus, Edit, Trash2, X, Upload, Download, ClipboardList, Users, FileUp, AlertTriangle, CheckCircle2, ChevronRight } from 'lucide-react';
 import { SUBJECTS } from '../constants/subjects';
 
 const TAB_LABELS = {
@@ -23,7 +23,18 @@ const Admin = () => {
   const [formData, setFormData] = useState({});
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
+  const pdfFileRef = useRef(null);
   const navigate = useNavigate();
+
+  // PDF Upload state
+  const [pdfModal, setPdfModal] = useState(false);
+  const [pdfStep, setPdfStep] = useState(1); // 1: cấu hình, 2: preview
+  const [pdfParsing, setPdfParsing] = useState(false);
+  const [pdfSaving, setPdfSaving] = useState(false);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfMeta, setPdfMeta] = useState({ subject_id: '', title: '', year: new Date().getFullYear(), duration_minutes: 90 });
+  const [pdfPreview, setPdfPreview] = useState(null); // { total, parsed, warnings, exam_meta }
+  const [pdfEditQuestions, setPdfEditQuestions] = useState([]);
 
   // Hàm xử lý import CSV câu hỏi
   const handleImportCSV = async (e) => {
@@ -43,6 +54,58 @@ const Admin = () => {
     } finally {
       setImporting(false);
       fileInputRef.current.value = '';
+    }
+  };
+
+  // --- PDF Upload handlers ---
+  const handleOpenPdfModal = () => {
+    setPdfModal(true);
+    setPdfStep(1);
+    setPdfFile(null);
+    setPdfPreview(null);
+    setPdfEditQuestions([]);
+    setPdfMeta({ subject_id: '', title: '', year: new Date().getFullYear(), duration_minutes: 90 });
+  };
+
+  const handleParsePdf = async () => {
+    if (!pdfFile) { alert('Vui lòng chọn file PDF!'); return; }
+    if (!pdfMeta.subject_id) { alert('Vui lòng chọn môn học!'); return; }
+    if (!pdfMeta.title.trim()) { alert('Vui lòng nhập tên đề thi!'); return; }
+    setPdfParsing(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', pdfFile);
+      fd.append('subject_id', pdfMeta.subject_id);
+      fd.append('title', pdfMeta.title);
+      fd.append('year', pdfMeta.year);
+      fd.append('duration_minutes', pdfMeta.duration_minutes);
+      const res = await axios.post('http://127.0.0.1:8000/api/exams/upload-pdf/parse', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setPdfPreview(res.data);
+      setPdfEditQuestions(res.data.parsed.map((q, i) => ({ ...q, _idx: i })));
+      setPdfStep(2);
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Lỗi khi phân tích PDF!');
+    } finally {
+      setPdfParsing(false);
+    }
+  };
+
+  const handleConfirmPdf = async () => {
+    setPdfSaving(true);
+    try {
+      const res = await axios.post('http://127.0.0.1:8000/api/exams/upload-pdf/confirm', {
+        exam_meta: pdfPreview.exam_meta,
+        questions: pdfEditQuestions,
+      });
+      alert(res.data.message);
+      setPdfModal(false);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Lỗi khi lưu đề thi!');
+    } finally {
+      setPdfSaving(false);
     }
   };
 
@@ -181,6 +244,15 @@ const handleEdit = (item) => {
                   <Upload size={20} /> {importing ? 'Đang import...' : 'Import CSV'}
                 </button>
               </>
+            )}
+            {/* Nút Upload PDF — chỉ hiện ở tab đề thi */}
+            {activeTab === 'exams' && (
+              <button
+                onClick={handleOpenPdfModal}
+                className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm"
+              >
+                <FileUp size={16} /> Upload PDF
+              </button>
             )}
             <button
               onClick={() => setShowModal(true)}
@@ -491,6 +563,220 @@ const handleEdit = (item) => {
         </div>
       </div>
     )}
+
+      {/* ===== MODAL UPLOAD PDF ===== */}
+      {pdfModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+
+            {/* Header */}
+            <div className="p-6 border-b flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <FileUp size={22} className="text-purple-600" />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800">Upload PDF Đề Thi</h2>
+                  <p className="text-xs text-gray-400">
+                    {pdfStep === 1 ? 'Bước 1/2 — Cấu hình đề thi' : `Bước 2/2 — Kiểm tra preview (${pdfPreview?.total || 0} câu hỏi)`}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setPdfModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 p-6">
+
+              {/* ---- Bước 1: Cấu hình ---- */}
+              {pdfStep === 1 && (
+                <div className="space-y-4">
+                  {/* Chọn file */}
+                  <div
+                    onClick={() => pdfFileRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition ${
+                      pdfFile ? 'border-purple-400 bg-purple-50' : 'border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                    }`}
+                  >
+                    <input
+                      ref={pdfFileRef}
+                      type="file"
+                      accept=".pdf"
+                      className="hidden"
+                      onChange={e => setPdfFile(e.target.files[0] || null)}
+                    />
+                    <FileUp size={32} className={`mx-auto mb-2 ${pdfFile ? 'text-purple-500' : 'text-gray-300'}`} />
+                    {pdfFile
+                      ? <p className="font-semibold text-purple-700">{pdfFile.name}</p>
+                      : <><p className="font-semibold text-gray-500">Nhấn để chọn file PDF</p>
+                          <p className="text-xs text-gray-400 mt-1">Chỉ hỗ trợ PDF dạng text (không phải ảnh scan)</p></>
+                    }
+                  </div>
+
+                  {/* Meta đề thi */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-semibold text-gray-600 mb-1.5">Tên đề thi</label>
+                      <input
+                        type="text"
+                        placeholder="VD: Đề thi THPT Quốc Gia 2024 môn Toán"
+                        value={pdfMeta.title}
+                        onChange={e => setPdfMeta(p => ({...p, title: e.target.value}))}
+                        className="w-full border border-gray-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-1.5">Môn học</label>
+                      <select
+                        value={pdfMeta.subject_id}
+                        onChange={e => setPdfMeta(p => ({...p, subject_id: e.target.value}))}
+                        className="w-full border border-gray-200 p-3 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-400"
+                      >
+                        <option value="">-- Chọn môn --</option>
+                        {SUBJECTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-1.5">Năm thi</label>
+                      <input
+                        type="number"
+                        min={2000} max={2030}
+                        value={pdfMeta.year}
+                        onChange={e => setPdfMeta(p => ({...p, year: e.target.value}))}
+                        className="w-full border border-gray-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-semibold text-gray-600 mb-1.5">Thời gian làm bài (phút)</label>
+                      <input
+                        type="number"
+                        min={1} max={300}
+                        value={pdfMeta.duration_minutes}
+                        onChange={e => setPdfMeta(p => ({...p, duration_minutes: e.target.value}))}
+                        className="w-full border border-gray-200 p-3 rounded-xl text-sm focus:ring-2 focus:ring-purple-400 outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ---- Bước 2: Preview ---- */}
+              {pdfStep === 2 && pdfPreview && (
+                <div className="space-y-4">
+                  {/* Tóm tắt */}
+                  <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl">
+                    <CheckCircle2 size={20} className="text-green-600 flex-shrink-0" />
+                    <p className="font-semibold text-green-700">
+                      Tách thành công <span className="text-2xl font-black">{pdfPreview.total}</span> câu hỏi
+                    </p>
+                  </div>
+
+                  {/* Warnings */}
+                  {pdfPreview.warnings.length > 0 && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle size={16} className="text-yellow-600" />
+                        <p className="text-sm font-bold text-yellow-700">{pdfPreview.warnings.length} cảnh báo</p>
+                      </div>
+                      <ul className="text-xs text-yellow-700 space-y-1 max-h-24 overflow-y-auto">
+                        {pdfPreview.warnings.map((w, i) => <li key={i}>• {w}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Bảng preview + edit inline */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-600 mb-2">Kiểm tra & chỉnh sửa câu hỏi:</p>
+                    <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                      {pdfEditQuestions.map((q, idx) => (
+                        <div key={idx} className="border border-gray-100 rounded-xl p-4 bg-gray-50 text-sm">
+                          <div className="flex items-start gap-2 mb-2">
+                            <span className="font-bold text-gray-400 flex-shrink-0">#{idx + 1}</span>
+                            <textarea
+                              className="flex-1 border border-gray-200 rounded-lg p-2 text-sm resize-none focus:ring-1 focus:ring-purple-400 outline-none"
+                              rows={2}
+                              value={q.content}
+                              onChange={e => {
+                                const next = [...pdfEditQuestions];
+                                next[idx] = { ...next[idx], content: e.target.value };
+                                setPdfEditQuestions(next);
+                              }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            {['a','b','c','d'].map(opt => (
+                              <div key={opt} className="flex items-center gap-1">
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                                  q.correct_answer.toLowerCase() === opt ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+                                }`}>{opt.toUpperCase()}</span>
+                                <input
+                                  type="text"
+                                  value={q[`option_${opt}`] || ''}
+                                  onChange={e => {
+                                    const next = [...pdfEditQuestions];
+                                    next[idx] = { ...next[idx], [`option_${opt}`]: e.target.value };
+                                    setPdfEditQuestions(next);
+                                  }}
+                                  className="flex-1 border border-gray-200 rounded-lg px-2 py-1 text-xs focus:ring-1 focus:ring-purple-400 outline-none"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs text-gray-500 font-semibold">Đáp án đúng:</span>
+                            {['A','B','C','D'].map(opt => (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => {
+                                  const next = [...pdfEditQuestions];
+                                  next[idx] = { ...next[idx], correct_answer: opt };
+                                  setPdfEditQuestions(next);
+                                }}
+                                className={`w-7 h-7 rounded-full text-xs font-bold transition ${
+                                  q.correct_answer.toUpperCase() === opt ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-green-100'
+                                }`}
+                              >{opt}</button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t flex gap-3 flex-shrink-0">
+              <button
+                onClick={() => pdfStep === 1 ? setPdfModal(false) : setPdfStep(1)}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition"
+              >
+                {pdfStep === 1 ? 'Hủy' : '← Quay lại'}
+              </button>
+              {pdfStep === 1 ? (
+                <button
+                  onClick={handleParsePdf}
+                  disabled={pdfParsing}
+                  className="flex-1 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 disabled:opacity-60 transition flex items-center justify-center gap-2"
+                >
+                  {pdfParsing ? 'Đang phân tích...' : <><ChevronRight size={18} /> Phân tích đề</>}
+                </button>
+              ) : (
+                <button
+                  onClick={handleConfirmPdf}
+                  disabled={pdfSaving || pdfEditQuestions.length === 0}
+                  className="flex-1 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 disabled:opacity-60 transition flex items-center justify-center gap-2"
+                >
+                  {pdfSaving ? 'Đang lưu...' : <><CheckCircle2 size={18} /> Lưu {pdfEditQuestions.length} câu hỏi</>}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal quản lý câu hỏi trong đề thi */}
     </div>
   );

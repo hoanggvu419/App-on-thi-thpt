@@ -1,8 +1,9 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 import mysql.connector
 import csv
 import io
+from pdf_parser import extract_text_from_pdf, parse_questions
 
 app = FastAPI()
 
@@ -707,3 +708,115 @@ def update_user(user_id: int, data: dict):
     finally:
         cursor.close()
         conn.close()
+
+
+# =============================================
+# --- UPLOAD PDF ĐỀ THI (Parse không lưu DB) ---
+# =============================================
+
+@app.post("/api/exams/upload-pdf/parse")
+async def parse_exam_pdf(
+    file: UploadFile = File(...),
+    subject_id: str = Form(...),
+    title: str = Form(...),
+    year: int = Form(...),
+    duration_minutes: int = Form(90),
+):
+    """Bước 1: Trích text từ PDF, trả về preview câu hỏi — KHÔNG lưu DB."""
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ file PDF!")
+
+    try:
+        file_bytes = await file.read()
+        text = extract_text_from_pdf(file_bytes)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Không đọc được file PDF: {str(e)}")
+
+    if not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="PDF không có text (có thể là ảnh scan). Hãy dùng file PDF gốc dạng text."
+        )
+
+    questions, warnings = parse_questions(text, subject_id)
+
+    return {
+        "total": len(questions),
+        "parsed": questions,
+        "warnings": warnings,
+        "exam_meta": {
+            "title": title,
+            "subject_id": subject_id,
+            "year": year,
+            "duration_minutes": duration_minutes,
+        }
+    }
+
+
+# =============================================
+# --- CONFIRM: Lưu đề thi + câu hỏi vào DB ---
+# =============================================
+
+@app.post("/api/exams/upload-pdf/confirm")
+def confirm_exam_pdf(data: dict):
+    """
+    Bước 2: Nhận exam_meta + questions từ frontend (sau khi admin đã xem preview),
+    tạo đề thi và bulk insert câu hỏi vào DB.
+    """
+    meta = data.get('exam_meta', {})
+    questions = data.get('questions', [])
+
+    if not meta.get('title') or not meta.get('subject_id'):
+        raise HTTPException(status_code=400, detail="Thiếu tiêu đề hoặc môn học!")
+    if not questions:
+        raise HTTPException(status_code=400, detail="Không có câu hỏi để lưu!")
+
+    conn = mysql.connector.connect(**db_params)
+    cursor = conn.cursor()
+    try:
+        # Tạo đề thi
+        cursor.execute(
+            """INSERT INTO exams (title, subject_id, year, duration_minutes, description)
+               VALUES (%s, %s, %s, %s, %s)""",
+            (
+                meta['title'], meta['subject_id'],
+                meta.get('year'), meta.get('duration_minutes', 90),
+                meta.get('description', f"Import từ PDF — {meta['title']}")
+            )
+        )
+        exam_id = cursor.lastrowid
+
+        # Bulk insert câu hỏi
+        inserted = 0
+        for q in questions:
+            content = (q.get('content') or '').strip()
+            if not content:
+                continue
+            cursor.execute(
+                """INSERT INTO exam_questions
+                   (exam_id, content, option_a, option_b, option_c, option_d, correct_answer, explanation)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                (
+                    exam_id, content,
+                    q.get('option_a', ''), q.get('option_b', ''),
+                    q.get('option_c', ''), q.get('option_d', ''),
+                    (q.get('correct_answer') or '').upper(),
+                    q.get('explanation', '')
+                )
+            )
+            inserted += 1
+
+        conn.commit()
+        return {
+            "status": "success",
+            "exam_id": exam_id,
+            "inserted": inserted,
+            "message": f"Đã tạo đề thi với {inserted} câu hỏi!"
+        }
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+

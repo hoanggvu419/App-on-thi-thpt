@@ -162,10 +162,10 @@ const Quiz = () => {
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
             <span className="text-blue-600 font-bold uppercase tracking-widest">
-              {isReviewMode ? '🔁 Ôn lại câu sai' : `Môn ${subjectLabel}`}
+              {isReviewMode ? 'Ôn lại câu sai' : `Môn ${subjectLabel}`}
             </span>
             {isPracticeMode && !isReviewMode && (
-              <span className="text-xs bg-orange-100 text-orange-600 font-bold px-2 py-1 rounded-full">📚 Luyện tập</span>
+              <span className="text-xs bg-orange-100 text-orange-600 font-bold px-2 py-1 rounded-full">Luyện tập</span>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -290,7 +290,7 @@ const Quiz = () => {
         {isPracticeMode ? (
           allAnswered ? (
             <button onClick={handleNopBai} className="w-full mt-2 bg-orange-500 text-white font-bold py-3 rounded-xl hover:bg-orange-600 shadow-lg shadow-orange-100 transition">
-              🎯 Xem kết quả
+              Xem kết quả
             </button>
           ) : (
             <p className="w-full mt-2 text-center text-sm text-gray-400 py-3">Trả lời hết {questions.length} câu để xem kết quả</p>

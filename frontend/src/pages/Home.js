@@ -123,13 +123,13 @@ const Home = () => {
                 onClick={() => setPracticeMode(false)}
                 className={`flex-1 py-2 text-sm font-bold transition ${!practiceMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
               >
-                🏆 Thi thử
+                Thi thử
               </button>
               <button
                 onClick={() => setPracticeMode(true)}
                 className={`flex-1 py-2 text-sm font-bold transition ${practiceMode ? 'bg-orange-500 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
               >
-                📚 Luyện tập
+                Luyện tập
               </button>
             </div>
 

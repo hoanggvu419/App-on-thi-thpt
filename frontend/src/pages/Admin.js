@@ -57,6 +57,24 @@ const Admin = () => {
     }
   };
 
+  // Tách đáp án khi backend gộp tất cả vào option_a
+  // VD: "exchange B. announce C. expect D. decide" → tách thành 4 đáp án riêng
+  const tryFixMergedOptions = (q) => {
+    if (q.option_b || q.option_c || q.option_d) return q;
+    if (!q.option_a) return q;
+    const match = q.option_a.match(/^(.+?)\s+B\.\s+(.+?)\s+C\.\s+(.+?)\s+D\.\s+(.+)$/i);
+    if (match) {
+      return {
+        ...q,
+        option_a: match[1].trim(),
+        option_b: match[2].trim(),
+        option_c: match[3].trim(),
+        option_d: match[4].trim(),
+      };
+    }
+    return q;
+  };
+
   // --- PDF Upload handlers ---
   const handleOpenPdfModal = () => {
     setPdfModal(true);
@@ -83,7 +101,7 @@ const Admin = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setPdfPreview(res.data);
-      setPdfEditQuestions(res.data.parsed.map((q, i) => ({ ...q, _idx: i })));
+      setPdfEditQuestions(res.data.parsed.map((q, i) => ({ ...tryFixMergedOptions(q), _idx: i })));
       setPdfStep(2);
     } catch (err) {
       alert(err.response?.data?.detail || 'Lỗi khi phân tích PDF!');
